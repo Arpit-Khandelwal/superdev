@@ -1,0 +1,311 @@
+/keypair - Request received
+/keypair - Response sent: {
+    "success": true,
+    "data": {
+        "pubkey": "ARCJcZgmnauPuVbWrf6No7KhY3kE3RVQE9Teinop1C7q",
+        "secret": "5491rWxv9x9jf6ozkFJwpMv9UTAdgmrgmqxBKcsQzkJKuce57eLtDiRXX364TTUHoSJR89aw3wdrSF8bjsiPB9Qb"
+    }
+}
+
+/keypair - Request received
+/keypair - Response sent: {
+    "success": true,
+    "data": {
+        "pubkey": "5mHWHtfJjiirvVBCThdibWE1DD9bv1LMbGyjZKeWCpAg",
+        "secret": "3mcqvv5vzAemGgfQq9j6dfdF2ZqikL4MMDfhL2rZwHxjTc4jG78b2zH5FGGGTMQb4maK3gfEkTj9knyuTTKenrJY"
+    }
+}
+
+/token/create - Request received
+/token/create - Request payload: {
+    "mintAuthority": "5mHWHtfJjiirvVBCThdibWE1DD9bv1LMbGyjZKeWCpAg",
+    "mint": "B99vgbNf7g4BVoTNhTqXJTC4dECvp4NvoBcoE8uGBA39",
+    "decimals": 6
+}
+/token/create - Response sent: {
+    "success": true,
+    "data": {
+        "program_id": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "accounts": [
+            {
+                "pubkey": "B99vgbNf7g4BVoTNhTqXJTC4dECvp4NvoBcoE8uGBA39",
+                "is_signer": false,
+                "is_writable": true
+            },
+            {
+                "pubkey": "SysvarRent111111111111111111111111111111111",
+                "is_signer": false,
+                "is_writable": false
+            }
+        ],
+        "instruction_data": "AAZGxvcxAKofMzzQ6qWD1Wbpajrg2xLhsS7vAAnE3G8s9QA="
+    }
+}
+
+/token/create - Request received
+/token/create - Request payload: {
+    "mintAuthority": "5mHWHtfJjiirvVBCThdibWE1DD9bv1LMbGyjZKeWCpAg",
+    "mint": "4UYTMpe5JDmyo5tCXMffLR8o81suvjGx1cE5jLa9rA1q",
+    "decimals": 6
+}
+/token/create - Response sent: {
+    "success": true,
+    "data": {
+        "program_id": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "accounts": [
+            {
+                "pubkey": "4UYTMpe5JDmyo5tCXMffLR8o81suvjGx1cE5jLa9rA1q",
+                "is_signer": false,
+                "is_writable": true
+            },
+            {
+                "pubkey": "SysvarRent111111111111111111111111111111111",
+                "is_signer": false,
+                "is_writable": false
+            }
+        ],
+        "instruction_data": "AAZGxvcxAKofMzzQ6qWD1Wbpajrg2xLhsS7vAAnE3G8s9QA="
+    }
+}
+/token/create - Request received
+/token/create - Request payload: {
+    "mintAuthority": "askdjkadsjkdsajkdajadkjk",
+    "mint": "asdadsdas",
+    "decimals": 6
+}
+/token/create - Error response sent: {
+    "error": "Invalid mint authority public key",
+    "success": false
+}
+/token/mint - Request received
+/token/mint - Request payload: {
+    "mint": "6723i4QCGWmUyf1cBXfdD56PvSHCgvs8QwFeQiYtK6UR",
+    "destination": "8GrG7Rf9jaYDj19ws8rMoSzoWdNWtDJEpRU6dBeLTTiE",
+    "authority": "5mHWHtfJjiirvVBCThdibWE1DD9bv1LMbGyjZKeWCpAg",
+    "amount": 1000000
+}
+/token/mint - Response sent: {
+    "success": true,
+    "data": {
+        "program_id": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "accounts": [
+            {
+                "pubkey": "6723i4QCGWmUyf1cBXfdD56PvSHCgvs8QwFeQiYtK6UR",
+                "is_signer": false,
+                "is_writable": true
+            },
+            {
+                "pubkey": "8GrG7Rf9jaYDj19ws8rMoSzoWdNWtDJEpRU6dBeLTTiE",
+                "is_signer": false,
+                "is_writable": true
+            },
+            {
+                "pubkey": "5mHWHtfJjiirvVBCThdibWE1DD9bv1LMbGyjZKeWCpAg",
+                "is_signer": true,
+                "is_writable": false
+            }
+        ],
+        "instruction_data": "B0BCDwAAAAAA"
+    }
+}
+/token/mint - Request received
+/token/mint - Request payload: {
+    "mint": "Adsasd",
+    "destination": "Asdads",
+    "authority": "asdadsads",
+    "amount": 1000000
+}
+/token/mint - Error response sent: {
+    "error": "Invalid mint public key",
+    "success": false
+}
+/message/sign - Request received
+/message/sign - Request payload: {
+    "message": "Hello, Solana!",
+    "secret": "3mcqvv5vzAemGgfQq9j6dfdF2ZqikL4MMDfhL2rZwHxjTc4jG78b2zH5FGGGTMQb4maK3gfEkTj9knyuTTKenrJY"
+}
+/message/sign - Response sent: {
+    "success": true,
+    "data": {
+        "signature": "DARHr3igOAkJkjXV+MMAvRzUK+wJ/P+YpqP8iyXbAt8wQgP6QTKPpRN8JtqYsDZWoSPhKFOb2hO0teK/KNdPBQ==",
+        "public_key": "5mHWHtfJjiirvVBCThdibWE1DD9bv1LMbGyjZKeWCpAg",
+        "message": "Hello, Solana!"
+    }
+}
+/message/sign - Request received
+/message/sign - Request payload: {
+    "message": "Hello, Solana!",
+    "secret": "secret"
+}
+/message/sign - Error response sent: {
+    "error": "Invalid secret key format",
+    "success": false
+}
+/message/sign - Request received
+/message/sign - Request payload: {
+    "message": "Hello, Solana!",
+    "secret": "3mcqvv5vzAemGgfQq9j6dfdF2ZqikL4MMDfhL2rZwHxjTc4jG78b2zH5FGGGTMQb4maK3gfEkTj9knyuTTKenrJY"
+}
+/message/sign - Response sent: {
+    "success": true,
+    "data": {
+        "signature": "DARHr3igOAkJkjXV+MMAvRzUK+wJ/P+YpqP8iyXbAt8wQgP6QTKPpRN8JtqYsDZWoSPhKFOb2hO0teK/KNdPBQ==",
+        "public_key": "5mHWHtfJjiirvVBCThdibWE1DD9bv1LMbGyjZKeWCpAg",
+        "message": "Hello, Solana!"
+    }
+}
+/message/sign - Request received
+/message/sign - Request payload: {
+    "message": "Goodbye, Solana!",
+    "secret": "3mcqvv5vzAemGgfQq9j6dfdF2ZqikL4MMDfhL2rZwHxjTc4jG78b2zH5FGGGTMQb4maK3gfEkTj9knyuTTKenrJY"
+}
+/message/sign - Response sent: {
+    "success": true,
+    "data": {
+        "signature": "MaR7JawgzhlbpvSsc7NePQaoeQWxH3xwGk1HPHEBGLM9CmoHzCa++1wvHLhy2Ca+eilLEtkM2iDl5m1FqaG3Bg==",
+        "public_key": "5mHWHtfJjiirvVBCThdibWE1DD9bv1LMbGyjZKeWCpAg",
+        "message": "Goodbye, Solana!"
+    }
+}
+/message/sign - Request received
+/message/sign - Request payload: {
+    "message": "Hello, Solana!",
+    "secret": "3mcqvv5vzAemGgfQq9j6dfdF2ZqikL4MMDfhL2rZwHxjTc4jG78b2zH5FGGGTMQb4maK3gfEkTj9knyuTTKenrJY"
+}
+/message/sign - Response sent: {
+    "success": true,
+    "data": {
+        "signature": "DARHr3igOAkJkjXV+MMAvRzUK+wJ/P+YpqP8iyXbAt8wQgP6QTKPpRN8JtqYsDZWoSPhKFOb2hO0teK/KNdPBQ==",
+        "public_key": "5mHWHtfJjiirvVBCThdibWE1DD9bv1LMbGyjZKeWCpAg",
+        "message": "Hello, Solana!"
+    }
+}
+/message/sign - Request received
+/message/sign - Request payload: {
+    "message": "Hello, Solana!",
+    "secret": "3mcqvv5vzAemGgfQq9j6dfdF2ZqikL4MMDfhL2rZwHxjTc4jG78b2zH5FGGGTMQb4maK3gfEkTj9knyuTTKenrJY"
+}
+/message/sign - Response sent: {
+    "success": true,
+    "data": {
+        "signature": "DARHr3igOAkJkjXV+MMAvRzUK+wJ/P+YpqP8iyXbAt8wQgP6QTKPpRN8JtqYsDZWoSPhKFOb2hO0teK/KNdPBQ==",
+        "public_key": "5mHWHtfJjiirvVBCThdibWE1DD9bv1LMbGyjZKeWCpAg",
+        "message": "Hello, Solana!"
+    }
+}
+/send/sol - Request received
+/send/sol - Request payload: {
+    "from": "4TY16ed4simWzZXuUhbeqACn5gfaEAxvLDXGCWMbcLgn",
+    "to": "27tr5s7NEL4YMMw4kXFh2a1G7sSCNNey7HtDf1armP94",
+    "lamports": 1000000
+}
+/send/sol - Response sent: {
+    "success": true,
+    "data": {
+        "program_id": "11111111111111111111111111111111",
+        "accounts": [
+            "4TY16ed4simWzZXuUhbeqACn5gfaEAxvLDXGCWMbcLgn",
+            "27tr5s7NEL4YMMw4kXFh2a1G7sSCNNey7HtDf1armP94"
+        ],
+        "instruction_data": "AgAAAEBCDwAAAAAA"
+    }
+}
+/send/sol - Request received
+/send/sol - Request payload: {
+    "from": "2ko1tQEhG9rid7y97w5WH3svj16yfNMhnaMc5FhU2Znu",
+    "to": "EcWxPuY8PUyiWa5sPSQ2iTVtHqbyGbvbuWmCq9UUiBRc",
+    "lamports": 0
+}
+/send/sol - Error response sent: {
+    "error": "Transfer amount must be greater than 0",
+    "success": false
+}
+/send/sol - Request received
+/send/sol - Request payload: {
+    "from": "sender",
+    "to": "Hiw33A5u4wmMDbStAuzMiccvuUr9GfTnCzirbR24tfyb",
+    "lamports": 1000000
+}
+/send/sol - Error response sent: {
+    "error": "Invalid from address",
+    "success": false
+}
+/send/sol - Request received
+/send/sol - Request payload: {
+    "from": "5P264X2ESLaTbSmx2ThwbLh8AED3V11tDnPU4GKC4UjL",
+    "to": "8VWqihyRc8nuU5h7sV6pWBGzm5Cy4gvejakAjsxZCnGG",
+    "lamports": 1000000
+}
+/send/sol - Response sent: {
+    "success": true,
+    "data": {
+        "program_id": "11111111111111111111111111111111",
+        "accounts": [
+            "5P264X2ESLaTbSmx2ThwbLh8AED3V11tDnPU4GKC4UjL",
+            "8VWqihyRc8nuU5h7sV6pWBGzm5Cy4gvejakAjsxZCnGG"
+        ],
+        "instruction_data": "AgAAAEBCDwAAAAAA"
+    }
+}
+/send/sol - Request received
+/send/sol - Request payload: {
+    "from": "5P264X2ESLaTbSmx2ThwbLh8AED3V11tDnPU4GKC4UjL",
+    "to": "8VWqihyRc8nuU5h7sV6pWBGzm5Cy4gvejakAjsxZCnGG",
+    "lamports": 1000000
+}
+/send/sol - Response sent: {
+    "success": true,
+    "data": {
+        "program_id": "11111111111111111111111111111111",
+        "accounts": [
+            "5P264X2ESLaTbSmx2ThwbLh8AED3V11tDnPU4GKC4UjL",
+            "8VWqihyRc8nuU5h7sV6pWBGzm5Cy4gvejakAjsxZCnGG"
+        ],
+        "instruction_data": "AgAAAEBCDwAAAAAA"
+    }
+}
+/send/sol - Request received
+/send/sol - Request payload: {
+    "from": "6z6nNoCQHYojqpebhoaReSftb9DXRPHcPZSUp7yu7mvy",
+    "to": "3WcMqBZFLK4sh3ky1Ee8YEBNPmsTRwcKDNL3sHiqHuD3",
+    "lamports": 200
+}
+/send/sol - Response sent: {
+    "success": true,
+    "data": {
+        "program_id": "11111111111111111111111111111111",
+        "accounts": [
+            "6z6nNoCQHYojqpebhoaReSftb9DXRPHcPZSUp7yu7mvy",
+            "3WcMqBZFLK4sh3ky1Ee8YEBNPmsTRwcKDNL3sHiqHuD3"
+        ],
+        "instruction_data": "AgAAAMgAAAAAAAAA"
+    }
+}
+/send/token - Request received
+/send/token - Request payload: {
+    "destination": "GYPQkkShjsXK7qby1DSiBHBh6ftw7gyu8VjBd8AZ9iUg",
+    "mint": "BJ5Tvrz3Yri4aYh5ykmTwZAaQmUEDLgkBA7FQWqpAdvU",
+    "owner": "CvNf9kAPFXfSK5USVRVgdBMendyuiE6Rf3BDTLrjqMvU",
+    "amount": 1000000
+}
+/send/token - Response sent: {
+    "success": true,
+    "data": {
+        "program_id": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "accounts": [
+            {
+                "pubkey": "FVWBqbeD9EdKgbH2cYE4yTAonnZY6d3zwBJzuR5QaHS3",
+                "isSigner": false
+            },
+            {
+                "pubkey": "GYPQkkShjsXK7qby1DSiBHBh6ftw7gyu8VjBd8AZ9iUg",
+                "isSigner": false
+            },
+            {
+                "pubkey": "CvNf9kAPFXfSK5USVRVgdBMendyuiE6Rf3BDTLrjqMvU",
+                "isSigner": true
+            }
+        ],
+        "instruction_data": "A0BCDwAAAAAA"
+    }
+}

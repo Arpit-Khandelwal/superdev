@@ -1,579 +1,399 @@
-use actix_web::{App, HttpResponse, HttpServer, Responder, web, middleware::Logger};
-use base64::prelude::*;
-use serde::{Deserialize, Serialize};
-use solana_sdk::{
-    pubkey::Pubkey,
-    signature::{Keypair, Signature, Signer},
-    system_instruction,
-};
-use spl_associated_token_account;
-use spl_token::{
-    instruction::{initialize_mint, mint_to, transfer},
-};
+use core::str;
 use std::str::FromStr;
-use serde_json;
 
+use actix_web::error::JsonPayloadError;
+use actix_web::web::Json;
+// write a simple endpoint to return a greeting message using actix-web
+use actix_web::{App, HttpResponse, HttpServer, Responder, Result, web};
+use base64::{Engine as _, engine::general_purpose};
+use serde::{Deserialize, Serialize};
+use serde_json::error;
+use solana_sdk::instruction;
+use solana_sdk::pubkey::Pubkey;
+use solana_sdk::signature::{Keypair, Signer};
+use solana_sdk::signer::keypair;
+use spl_token::id as spl_token;
+use spl_token::instruction as token_instruction;
+async fn greet() -> impl Responder {
+    println!("Received a request to greet");
+    "Hello, world!"
+}
 #[derive(Serialize)]
 struct KeypairResponse {
-    success: bool,
-    data: KeypairData,
-}
-
-#[derive(Serialize)]
-struct KeypairData {
     pubkey: String,
-    secret: String,
+    secret_key: String,
 }
 
-
-
-#[actix_web::post("/keypair")]
-async fn generate_keypair() -> impl Responder {
+async fn keypair() -> impl Responder {
     let keypair = Keypair::new();
+    let pubkey = keypair.pubkey();
+    let secret_key = keypair.to_base58_string();
 
-    let pubkey = keypair.pubkey().to_string();
-    let secret = bs58::encode(&keypair.to_bytes()).into_string();
-    let response = KeypairResponse {
-        success: true,
-        data: KeypairData { pubkey, secret },
-    };
+    // response:
+    //     {
+    //   "success": true,
+    //   "data": {
+    //     "pubkey": "base58-encoded-public-key",
+    //     "secret": "base58-encoded-secret-key"
+    //   }
+    // }
 
-    HttpResponse::Ok().json(response)
+    let response = serde_json::json!({
+        "success": true,
+        "data": {
+            "pubkey": pubkey.to_string(),
+            "secret": secret_key,
+        }
+    });
+    web::Json(response)
 }
 
-#[derive(Deserialize, Serialize)]
-struct CreateTokenRequest {
-    #[serde(rename = "mintAuthority")]
-    mint_authority: String,
+#[derive(Deserialize)]
+struct CreateTokenMintRequest {
+    mintAuthority: String,
     mint: String,
     decimals: u8,
 }
+// Create a new SPL token initialise mint instruction.
+async fn create_spl_token_mint(req: Result<web::Json<CreateTokenMintRequest>>) -> impl Responder {
+    // this takes a request:
+    //{
+    //   "mintAuthority": "base58-encoded-public-key",
+    //   "mint": "base58-encoded-public-key"
+    //   "decimals": 6
+    // }
 
-#[derive(Serialize)]
-struct CreateTokenResponse {
-    success: bool,
-    data: TokenInstructionData,
+    match req {
+        Ok(req) => {
+            // test if request is valid with fields mintAuthority, mint, and decimals
+            if req.mintAuthority.is_empty() {
+                return HttpResponse::BadRequest().json(serde_json::json!({
+                    "success": false,
+                    "error": "Invalid request. `mintAuthority` is required."
+                }));
+            }
+            if req.mint.is_empty() {
+                return HttpResponse::BadRequest().json(serde_json::json!({
+                    "success": false,
+                    "error": "Invalid request. `mint` is required."
+                }));
+            }
+            if req.decimals > 9 {
+                return HttpResponse::BadRequest().json(serde_json::json!({
+                    "success": false,
+                    "error": "Invalid request. `decimals` must be between 0 and 9."
+                }));
+            }
+
+            let mint_authority = match Pubkey::from_str(&req.mintAuthority) {
+                Ok(pubkey) => pubkey,
+                Err(_) => {
+                    return HttpResponse::BadRequest().json(serde_json::json!({
+                        "success": false,
+                        "error": "Invalid `mintAuthority` public key."
+                    }));
+                }
+            };
+
+            let mint = match Pubkey::from_str(&req.mint) {
+                Ok(pubkey) => pubkey,
+                Err(_) => {
+                    return HttpResponse::BadRequest().json(serde_json::json!({
+                        "success": false,
+                        "error": "Invalid `mint` public key."
+                    }));
+                }
+            };
+
+            let decimals = match req.decimals {
+                0..=9 => req.decimals,
+                _ => {
+                    return HttpResponse::BadRequest().json(serde_json::json!({
+                        "success": false,
+                        "error": "Invalid `decimals`. Must be between 0 and 9."
+                    }));
+                }
+            };
+
+            let instruction = match token_instruction::initialize_mint(
+                &spl_token::ID,
+                &mint,
+                &mint_authority,
+                None,
+                decimals,
+            ) {
+                Ok(ix) => ix,
+                Err(e) => {
+                    return HttpResponse::InternalServerError().json(serde_json::json!({
+                        "success": false,
+                        "error": format!("Failed to create initialize mint instruction: {}", e)
+                    }));
+                }
+            };
+
+            // println!("Created instruction: {:?}", instruction);
+
+            //{
+            //   "success": true,
+            //   "data": {
+            //     "program_id": "string",
+            //     "accounts": [{
+            // 	    pubkey: "pubkey",
+            // 	    is_signer: boolean,
+            // 	    is_writable: boolean
+            //     }]...,
+            //     "instruction_data": "base64-encoded-data"
+            //   }
+            // }
+
+            let response = serde_json::json!({
+                "success": true,
+                "data": {
+                    "program_id": instruction.program_id.to_string(),
+                    "accounts": instruction
+                        .accounts
+                        .iter()
+                        .map(|account| {
+                            serde_json::json!({
+                                "pubkey": account.pubkey.to_string(),
+                                "is_signer": account.is_signer,
+                                "is_writable": account.is_writable,
+                            })
+                        })
+                        .collect::<Vec<_>>(),
+                    "instruction_data": instruction.data,
+                }
+            });
+
+            //return HTTP 200
+            HttpResponse::Ok().json(response)
+        }
+        Err(_) => {
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "success": false,
+                "error": "Invalid request format."
+            }));
+        }
+    }
 }
 
-#[derive(Serialize)]
-struct TokenInstructionData {
-    program_id: String,
-    accounts: Vec<AccountInfo>,
-    instruction_data: String,
-}
-
-#[derive(Serialize)]
-struct AccountInfo {
-    pubkey: String,
-    is_signer: bool,
-    is_writable: bool,
-}
-
-#[derive(Deserialize, Serialize)]
-struct MintTokenRequest {
+#[derive(Deserialize)]
+struct MintTokenInstructionRequest {
     mint: String,
     destination: String,
     authority: String,
     amount: u64,
 }
 
-#[derive(Serialize)]
-struct MintTokenResponse {
-    success: bool,
-    data: TokenInstructionData,
+async fn mint_token_instruction(
+    req: Result<web::Json<MintTokenInstructionRequest>>,
+) -> impl Responder {
+    //create a mint-to instruction for an SPL token
+    match req {
+        Ok(req) => {
+            // Validate the request fields
+            if req.mint.is_empty() {
+                return HttpResponse::BadRequest().json(serde_json::json!({
+                    "success": false,
+                    "error": "Invalid request. `mint` is required."
+                }));
+            }
+            if req.destination.is_empty() {
+                return HttpResponse::BadRequest().json(serde_json::json!({
+                    "success": false,
+                    "error": "Invalid request. `destination` is required."
+                }));
+            }
+            if req.authority.is_empty() {
+                return HttpResponse::BadRequest().json(serde_json::json!({
+                    "success": false,
+                    "error": "Invalid request. `authority` is required."
+                }));
+            }
+            if req.amount == 0 {
+                return HttpResponse::BadRequest().json(serde_json::json!({
+                    "success": false,
+                    "error": "Invalid request. `amount` must be greater than 0."
+                }));
+            }
+
+            let mint = match Pubkey::from_str(&req.mint) {
+                Ok(pubkey) => pubkey,
+                Err(_) => {
+                    return HttpResponse::BadRequest().json(serde_json::json!({
+                        "success": false,
+                        "error": "Invalid `mint` public key."
+                    }));
+                }
+            };
+            let destination = match Pubkey::from_str(&req.destination) {
+                Ok(pubkey) => pubkey,
+                Err(_) => {
+                    return HttpResponse::BadRequest().json(serde_json::json!({
+                        "success": false,
+                        "error": "Invalid `destination` public key."
+                    }));
+                }
+            };
+            let authority = match Pubkey::from_str(&req.authority) {
+                Ok(pubkey) => pubkey,
+                Err(_) => {
+                    return HttpResponse::BadRequest().json(serde_json::json!({
+                        "success": false,
+                        "error": "Invalid `authority` public key."
+                    }));
+                }
+            };
+
+            // Create the mint-to instruction
+            let instruction = match token_instruction::mint_to(
+                &spl_token::ID,
+                &mint,
+                &destination,
+                &authority,
+                &[],
+                req.amount,
+            ) {
+                Ok(ix) => ix,
+                Err(e) => {
+                    return HttpResponse::InternalServerError().json(serde_json::json!({
+                        "success": false,
+                        "error": format!("Failed to create mint-to instruction: {}", e)
+                    }));
+                }
+            };
+            // Construct the response
+            let response = serde_json::json!({
+            "success": true,
+            "data": {
+                "program_id": instruction.program_id.to_string(),
+                "accounts": instruction
+                    .accounts
+                    .iter()
+                    .map(|account| {
+                        serde_json::json!({
+                            "pubkey": account.pubkey.to_string(),
+                            "is_signer": account.is_signer,
+                            "is_writable": account.is_writable,
+                        })
+                    })
+                    .collect::<Vec<_>>(),
+                "instruction_data": general_purpose::STANDARD.encode(instruction.data),
+            }});
+            // Return HTTP 200 with the response
+            HttpResponse::Ok().json(response)
+        }
+        Err(_) => {
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "success": false,
+                "error": "Invalid request format."
+            }));
+        }
+    }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize)]
 struct SignMessageRequest {
     message: String,
     secret: String,
 }
 
-#[derive(Serialize)]
-struct SignMessageResponse {
-    success: bool,
-    data: SignMessageData,
+fn keypair_from_base58_string(secret: &str) -> Result<Keypair, String> {
+    let bytes = bs58::decode(secret)
+        .into_vec()
+        .map_err(|_| "Invalid base58 in `secret`")?;
+    if bytes.len() != 64 {
+        return Err("Secret key must be 64 bytes".to_string());
+    }
+    Keypair::from_bytes(&bytes).map_err(|_| "Invalid keypair bytes".to_string())
 }
 
-#[derive(Serialize)]
-struct SignMessageData {
-    signature: String,
-    public_key: String,
-    message: String,
-}
+async fn sign_message(req: Result<web::Json<SignMessageRequest>>) -> impl Responder {
+    match req {
+        Ok(req) => {
+            // Validate the request fields
+            if req.message.is_empty() {
+                return HttpResponse::BadRequest().json(serde_json::json!({
+                    "success": false,
+                    "error": "Invalid request. `message` is required."
+                }));
+            }
+            if req.secret.is_empty() {
+                return HttpResponse::BadRequest().json(serde_json::json!({
+                    "success": false,
+                    "error": "Invalid request. `secret` is required."
+                }));
+            }
 
-#[derive(Deserialize, Serialize)]
-struct VerifyMessageRequest {
-    message: String,
-    signature: String,
-    pubkey: String,
-}
+            let keypair = match keypair_from_base58_string(&req.secret) {
+                Ok(kp) => kp,
+                Err(e) => {
+                    return HttpResponse::BadRequest().json(serde_json::json!({
+                        "success": false,
+                        "error": e
+                    }));
+                }
+            };
 
-#[derive(Serialize)]
-struct VerifyMessageResponse {
-    success: bool,
-    data: VerifyMessageData,
-}
+            // Decode the secret key from base58
+            // check if the secret key is a valid base58 string
 
-#[derive(Serialize)]
-struct VerifyMessageData {
-    valid: bool,
-    message: String,
-    pubkey: String,
-}
+            // Sign the message
+            let message_bytes = req.message.as_bytes();
+            let signature = keypair.sign_message(message_bytes);
+            let public_key = keypair.pubkey();
 
-#[derive(Deserialize, Serialize)]
-struct SendSolRequest {
-    from: String,
-    to: String,
-    lamports: u64,
-}
+            // Verify the signature
+            if !signature.verify(public_key.as_ref(), message_bytes) {
+                return HttpResponse::BadRequest().json(serde_json::json!({
+                    "success": false,
+                    "error": "Failed to verify signature."
+                }));
+            }
 
-#[derive(Serialize)]
-struct SendSolResponse {
-    success: bool,
-    data: SolInstructionData,
-}
+            if !public_key.is_on_curve() {
+                return HttpResponse::BadRequest().json(serde_json::json!({
+                    "success": false,
+                    "error": "Failed to verify public key."
+                }));
+            }
 
-#[derive(Serialize)]
-struct SolInstructionData {
-    program_id: String,
-    accounts: Vec<String>,
-    instruction_data: String,
-}
+            // Construct the response
+            let response = serde_json::json!({
+                "success": true,
+                "data": {
+                    "signature": general_purpose::STANDARD.encode(signature.to_string()),
+                    "public_key": public_key,
+                    "message": req.message
+                }
+            });
 
-#[derive(Deserialize, Serialize)]
-struct SendTokenRequest {
-    destination: String,
-    mint: String,
-    owner: String,
-    amount: u64,
-}
-
-#[derive(Serialize)]
-struct SendTokenResponse {
-    success: bool,
-    data: TokenTransferInstructionData,
-}
-
-#[derive(Serialize)]
-struct TokenTransferInstructionData {
-    program_id: String,
-    accounts: Vec<TokenTransferAccountInfo>,
-    instruction_data: String,
-}
-
-#[derive(Serialize)]
-struct TokenTransferAccountInfo {
-    pubkey: String,
-    #[serde(rename = "isSigner")]
-    is_signer: bool,
-}
-
-fn main() {
-    if let Err(e) = actix_web::rt::System::new().block_on(run_server()) {
-        eprintln!("Failed to start server: {}", e);
-        std::process::exit(1);
+            // Return HTTP 200 with the response
+            return HttpResponse::Ok().json(response);
+        }
+        Err(_) => {
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "success": false,
+                "error": "Invalid request format."
+            }));
+        }
     }
 }
 
-async fn run_server() -> std::io::Result<()> {
-    let port = 8080;
+#[actix_web::main]
+async fn main() {
     HttpServer::new(|| {
         App::new()
-            .wrap(Logger::default())
-            .service(generate_keypair)
-            .service(create_token)
-            .service(mint_token)
-            .service(sign_message)
-            .service(verify_message)
-            .service(send_sol)
-            .service(send_token)
+            .route("/", web::get().to(greet))
+            .route("/greet", web::get().to(greet))
+            .route("/keypair", web::post().to(keypair))
+            .route("/token/create", web::post().to(create_spl_token_mint))
+            .route("/token/mint", web::post().to(mint_token_instruction))
+            .route("/message/sign", web::post().to(sign_message))
     })
-    .bind(("127.0.0.1", port))?
-    .workers(8)
+    .bind("127.0.0.1:8080")
+    .expect("Failed to bind server")
     .run()
     .await
-}
-
-#[actix_web::post("/token/create")]
-async fn create_token(req: web::Json<CreateTokenRequest>) -> impl Responder {
-    if req.mint_authority.is_empty() || req.mint.is_empty() {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "success": false,
-            "error": "Missing required fields"
-        }));
-    }
-
-    let mint_authority = match Pubkey::from_str(&req.mint_authority) {
-        Ok(pubkey) => pubkey,
-        Err(_) => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "success": false,
-                "error": "Invalid mint authority public key"
-            }));
-        }
-    };
-
-    let mint_pubkey = match Pubkey::from_str(&req.mint) {
-        Ok(pubkey) => pubkey,
-        Err(_) => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "success": false,
-                "error": "Invalid mint public key"
-            }));
-        }
-    };
-
-    let instruction = initialize_mint(
-        &spl_token::id(),
-        &mint_pubkey,
-        &mint_authority,
-        None,
-        req.decimals,
-    )
-    .unwrap();
-
-    let accounts: Vec<AccountInfo> = instruction
-        .accounts
-        .iter()
-        .map(|account| AccountInfo {
-            pubkey: account.pubkey.to_string(),
-            is_signer: account.is_signer,
-            is_writable: account.is_writable,
-        })
-        .collect();
-
-    let instruction_data = base64::prelude::BASE64_STANDARD.encode(&instruction.data);
-
-    let response = CreateTokenResponse {
-        success: true,
-        data: TokenInstructionData {
-            program_id: instruction.program_id.to_string(),
-            accounts,
-            instruction_data,
-        },
-    };
-
-    HttpResponse::Ok().json(response)
-}
-
-#[actix_web::post("/token/mint")]
-async fn mint_token(req: web::Json<MintTokenRequest>) -> impl Responder {
-    if req.mint.is_empty() || req.destination.is_empty() || req.authority.is_empty() {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "success": false,
-            "error": "Missing required fields"
-        }));
-    }
-
-    if req.amount == 0 {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "success": false,
-            "error": "Amount must be greater than 0"
-        }));
-    }
-
-    let mint_pubkey = match Pubkey::from_str(&req.mint) {
-        Ok(pubkey) => pubkey,
-        Err(_) => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "success": false,
-                "error": "Invalid mint public key"
-            }));
-        }
-    };
-
-    let destination_pubkey = match Pubkey::from_str(&req.destination) {
-        Ok(pubkey) => pubkey,
-        Err(_) => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "success": false,
-                "error": "Invalid destination public key"
-            }));
-        }
-    };
-
-    let authority_pubkey = match Pubkey::from_str(&req.authority) {
-        Ok(pubkey) => pubkey,
-        Err(_) => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "success": false,
-                "error": "Invalid authority public key"
-            }));
-        }
-    };
-
-    let instruction = mint_to(
-        &spl_token::id(),
-        &mint_pubkey,
-        &destination_pubkey,
-        &authority_pubkey,
-        &[],
-        req.amount,
-    )
-    .unwrap();
-
-    let accounts: Vec<AccountInfo> = instruction
-        .accounts
-        .iter()
-        .map(|account| AccountInfo {
-            pubkey: account.pubkey.to_string(),
-            is_signer: account.is_signer,
-            is_writable: account.is_writable,
-        })
-        .collect();
-
-    let instruction_data = base64::prelude::BASE64_STANDARD.encode(&instruction.data);
-
-    let response = MintTokenResponse {
-        success: true,
-        data: TokenInstructionData {
-            program_id: instruction.program_id.to_string(),
-            accounts,
-            instruction_data,
-        },
-    };
-
-    HttpResponse::Ok().json(response)
-}
-
-#[actix_web::post("/message/sign")]
-async fn sign_message(req: web::Json<SignMessageRequest>) -> impl Responder {
-    if req.message.is_empty() || req.secret.is_empty() {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "success": false,
-            "error": "Missing required fields"
-        }));
-    }
-
-    let secret_key = match bs58::decode(&req.secret).into_vec() {
-        Ok(key) => key,
-        Err(_) => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "success": false,
-                "error": "Invalid secret key"
-            }));
-        }
-    };
-
-    let keypair = match Keypair::try_from(&secret_key[..]) {
-        Ok(kp) => kp,
-        Err(_) => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "success": false,
-                "error": "Invalid secret key format"
-            }));
-        }
-    };
-
-    let message_bytes = req.message.as_bytes();
-    let signature = keypair.sign_message(message_bytes);
-
-    let signature_base64 = BASE64_STANDARD.encode(signature.as_ref());
-
-    let response = SignMessageResponse {
-        success: true,
-        data: SignMessageData {
-            signature: signature_base64,
-            public_key: keypair.pubkey().to_string(),
-            message: req.message.clone(),
-        },
-    };
-
-    HttpResponse::Ok().json(response)
-}
-
-#[actix_web::post("/message/verify")]
-async fn verify_message(req: web::Json<VerifyMessageRequest>) -> impl Responder {
-    if req.message.is_empty() || req.signature.is_empty() || req.pubkey.is_empty() {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "success": false,
-            "error": "Missing required fields"
-        }));
-    }
-
-    let pubkey = match Pubkey::from_str(&req.pubkey) {
-        Ok(key) => key,
-        Err(_) => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "success": false,
-                "error": "Invalid public key"
-            }));
-        }
-    };
-
-    let signature_bytes = match BASE64_STANDARD.decode(&req.signature) {
-        Ok(bytes) => bytes,
-        Err(_) => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "success": false,
-                "error": "Invalid signature format"
-            }));
-        }
-    };
-
-    let signature = match Signature::try_from(&signature_bytes[..]) {
-        Ok(sig) => sig,
-        Err(_) => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "success": false,
-                "error": "Invalid signature"
-            }));
-        }
-    };
-
-    let message_bytes = req.message.as_bytes();
-    let is_valid = signature.verify(&pubkey.to_bytes(), message_bytes);
-
-    let response = VerifyMessageResponse {
-        success: true,
-        data: VerifyMessageData {
-            valid: is_valid,
-            message: req.message.clone(),
-            pubkey: req.pubkey.clone(),
-        },
-    };
-
-    HttpResponse::Ok().json(response)
-}
-
-#[actix_web::post("/send/sol")]
-async fn send_sol(req: web::Json<SendSolRequest>) -> impl Responder {
-    if req.from.is_empty() || req.to.is_empty() {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "success": false,
-            "error": "Missing required fields"
-        }));
-    }
-
-    if req.lamports == 0 {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "success": false,
-            "error": "Transfer amount must be greater than 0"
-        }));
-    }
-
-    let from_pubkey = match Pubkey::from_str(&req.from) {
-        Ok(pubkey) => pubkey,
-        Err(_) => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "success": false,
-                "error": "Invalid from address"
-            }));
-        }
-    };
-
-    let to_pubkey = match Pubkey::from_str(&req.to) {
-        Ok(pubkey) => pubkey,
-        Err(_) => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "success": false,
-                "error": "Invalid to address"
-            }));
-        }
-    };
-
-    let instruction = system_instruction::transfer(&from_pubkey, &to_pubkey, req.lamports);
-
-    let accounts: Vec<String> = instruction
-        .accounts
-        .iter()
-        .map(|account| account.pubkey.to_string())
-        .collect();
-
-    let instruction_data = BASE64_STANDARD.encode(&instruction.data);
-
-    let response = SendSolResponse {
-        success: true,
-        data: SolInstructionData {
-            program_id: instruction.program_id.to_string(),
-            accounts,
-            instruction_data,
-        },
-    };
-
-    HttpResponse::Ok().json(response)
-}
-
-#[actix_web::post("/send/token")]
-async fn send_token(req: web::Json<SendTokenRequest>) -> impl Responder {
-    if req.destination.is_empty() || req.mint.is_empty() || req.owner.is_empty() {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "success": false,
-            "error": "Missing required fields"
-        }));
-    }
-
-    if req.amount == 0 {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "success": false,
-            "error": "Transfer amount must be greater than 0"
-        }));
-    }
-
-    let destination_pubkey = match Pubkey::from_str(&req.destination) {
-        Ok(pubkey) => pubkey,
-        Err(_) => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "success": false,
-                "error": "Invalid destination address"
-            }));
-        }
-    };
-
-    let mint_pubkey = match Pubkey::from_str(&req.mint) {
-        Ok(pubkey) => pubkey,
-        Err(_) => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "success": false,
-                "error": "Invalid mint address"
-            }));
-        }
-    };
-
-    let owner_pubkey = match Pubkey::from_str(&req.owner) {
-        Ok(pubkey) => pubkey,
-        Err(_) => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "success": false,
-                "error": "Invalid owner address"
-            }));
-        }
-    };
-
-    let source_pubkey =
-        spl_associated_token_account::get_associated_token_address(&owner_pubkey, &mint_pubkey);
-
-    let instruction = transfer(
-        &spl_token::id(),
-        &source_pubkey,
-        &destination_pubkey,
-        &owner_pubkey,
-        &[],
-        req.amount,
-    )
-    .unwrap();
-
-    let accounts: Vec<TokenTransferAccountInfo> = instruction
-        .accounts
-        .iter()
-        .map(|account| TokenTransferAccountInfo {
-            pubkey: account.pubkey.to_string(),
-            is_signer: account.is_signer,
-        })
-        .collect();
-
-    let instruction_data = BASE64_STANDARD.encode(&instruction.data);
-
-    let response = SendTokenResponse {
-        success: true,
-        data: TokenTransferInstructionData {
-            program_id: instruction.program_id.to_string(),
-            accounts,
-            instruction_data,
-        },
-    };
-
-    HttpResponse::Ok().json(response)
+    .expect("Failed to run server");
 }
